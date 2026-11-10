@@ -1,0 +1,86 @@
+/PROG  BRG_MOUNT
+/ATTR
+OWNER		= MNEDITOR;
+COMMENT		= "Bearing mount";
+PROG_SIZE	= 0;
+CREATE		= DATE 26-11-10  TIME 12:00:00;
+MODIFIED	= DATE 26-11-10  TIME 12:00:00;
+FILE_NAME	= ;
+VERSION		= 0;
+LINE_COUNT	= 62;
+MEMORY_SIZE	= 0;
+PROTECT		= READ_WRITE;
+TCD:  STACK_SIZE	= 0,
+      TASK_PRIORITY	= 50,
+      TIME_SLICE	= 0,
+      BUSY_LAMP_OFF	= 0,
+      ABORT_REQUEST	= 0,
+      PAUSE_REQUEST	= 0;
+DEFAULT_GROUP	= 1,*,*,*,*;
+CONTROL_CODE	= 00000000 00000000;
+/APPL
+/MN
+   1:  !Mount one bearing on the rotor shaft ;
+   2:  !Handshake with PLC FB MOUNT_CELL ;
+   3:  !Signals: robot/io_map.yaml ;
+   4:  UFRAME_NUM=1 ;
+   5:  UTOOL_NUM=1 ;
+   6:  DO[102:PICKED]=OFF ;
+   7:  DO[103:AT_SHAFT]=OFF ;
+   8:  DO[104:SEATED]=OFF ;
+   9:  DO[105:RELEASED]=OFF ;
+  10:  DO[106:RETURNED]=OFF ;
+  11:  J PR[6:HOME] 100% FINE ;
+  12:  DO[101:READY]=ON ;
+  13:  LBL[1:WAIT PICK] ;
+  14:  WAIT DI[101:PICK]=ON ;
+  15:  DO[101:READY]=OFF ;
+  16:  J PR[1:HEATER_APPR] 100% CNT50 ;
+  17:  L PR[2:HEATER_PICK] 500mm/sec FINE ;
+  18:  CALL GRIP_CLOSE ;
+  19:  !Transfer clock starts in the PLC ;
+  20:  DO[102:PICKED]=ON ;
+  21:  L PR[1:HEATER_APPR] 1500mm/sec CNT20 ;
+  22:  L PR[3:SHAFT_APPR] 1500mm/sec CNT20 ;
+  23:  L PR[4:SEAT_START] 300mm/sec FINE ;
+  24:  DO[103:AT_SHAFT]=ON ;
+  25:  WAIT (DI[102:INSERT] OR DI[104:ABORT] OR DI[103:RELEASE]) ;
+  26:  IF DI[104:ABORT]=ON,JMP LBL[90] ;
+  27:  IF DI[103:RELEASE]=ON,JMP LBL[50] ;
+  28:  !Press methods: leave the ring on the lead-in ;
+  29:  !Slide on; stop when the face ;
+  30:  !reaches the shoulder ;
+  31:  SKIP CONDITION DI[110:FACE_AT_SHOULDER]=ON ;
+  32:  L PR[5:SEAT_END] R[10:V_INSERT]mm/sec FINE Skip,LBL[80] ;
+  33:  DO[104:SEATED]=ON ;
+  34:  !Hold against the shoulder ;
+  35:  WAIT DI[103:RELEASE]=ON ;
+  36:  LBL[50:LEAVE RING] ;
+  37:  CALL GRIP_OPEN ;
+  38:  DO[105:RELEASED]=ON ;
+  39:  L PR[3:SHAFT_APPR] 1000mm/sec CNT50 ;
+  40:  J PR[6:HOME] 100% CNT50 ;
+  41:  WAIT DI[103:RELEASE]=OFF ;
+  42:  DO[102:PICKED]=OFF ;
+  43:  DO[103:AT_SHAFT]=OFF ;
+  44:  DO[104:SEATED]=OFF ;
+  45:  DO[105:RELEASED]=OFF ;
+  46:  DO[101:READY]=ON ;
+  47:  JMP LBL[1] ;
+  48:  LBL[80:NOT SEATED] ;
+  49:  UALM[1] ;
+  50:  JMP LBL[1] ;
+  51:  LBL[90:RETURN TO HEATER] ;
+  52:  L PR[3:SHAFT_APPR] 1000mm/sec CNT20 ;
+  53:  L PR[1:HEATER_APPR] 1500mm/sec CNT20 ;
+  54:  L PR[2:HEATER_PICK] 300mm/sec FINE ;
+  55:  CALL GRIP_OPEN ;
+  56:  DO[106:RETURNED]=ON ;
+  57:  L PR[1:HEATER_APPR] 1000mm/sec CNT50 ;
+  58:  WAIT DI[104:ABORT]=OFF ;
+  59:  DO[106:RETURNED]=OFF ;
+  60:  DO[102:PICKED]=OFF ;
+  61:  DO[103:AT_SHAFT]=OFF ;
+  62:  JMP LBL[1] ;
+/POS
+/END

@@ -1,0 +1,26 @@
+# Handshake between the PLC function block MOUNT_CELL (plc/st/mount_cell.st) and the robot program BRG_MOUNT.ls.
+# robot_di: PLC output -> robot digital input.  robot_do: robot digital output -> PLC input.
+robot_di:
+  101: {name: PICK, plc: qRbPick}
+  102: {name: INSERT, plc: qRbInsert}
+  103: {name: RELEASE, plc: qRbRelease}
+  104: {name: ABORT, plc: qRbAbort}
+robot_do:
+  101: {name: READY, plc: rbReady}
+  102: {name: PICKED, plc: rbPicked}
+  103: {name: AT_SHAFT, plc: rbAtShaft}
+  104: {name: SEATED, plc: rbSeated}
+  105: {name: RELEASED, plc: rbReleased}
+  106: {name: RETURNED, plc: rbReturned}
+# cell sensor wired to the robot (skip condition): ring face at the shoulder (inductive sensor on the fixture)
+robot_sensor_di:
+  110: {name: FACE_AT_SHOULDER}
+registers:
+  10: {name: V_INSERT, unit: mm/sec, note: "slide-on speed; recipe from DOSSIER §6 process window"}
+position_registers:
+  1: HEATER_APPR
+  2: HEATER_PICK
+  3: SHAFT_APPR
+  4: SEAT_START
+  5: SEAT_END
+  6: HOME

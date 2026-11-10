@@ -1,0 +1,64 @@
+name: ci
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+env:
+  # matiec (IEC 61131-3 compiler of the Beremiz / OpenPLC projects), pinned
+  MATIEC_REPO: https://github.com/beremiz/matiec.git
+  MATIEC_REF: c316fe57e335381cbe91f61c7366857198580ac7
+
+jobs:
+  test:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r requirements.txt
+      - name: Cache matiec
+        id: matiec
+        uses: actions/cache@v4
+        with:
+          path: ~/matiec
+          key: matiec-${{ env.MATIEC_REF }}
+      - name: Build matiec
+        if: steps.matiec.outputs.cache-hit != 'true'
+        run: |
+          sudo apt-get install -y -qq bison flex autoconf automake libtool
+          git clone -q "$MATIEC_REPO" ~/matiec
+          cd ~/matiec && git checkout -q "$MATIEC_REF"
+          autoreconf -i && ./configure && make -j4
+      - name: Compile the ST controller (matiec -> C -> shared library)
+        run: PYTHON=python bash scripts/build_plc.sh
+      - name: Model and controller tests
+        run: python -m pytest -q
+      - name: SCL export is up to date with the ST source
+        run: |
+          python plc/st_to_scl.py plc/st/mount_cell.st /tmp/MountCell.scl
+          diff <(tr -d '\r' < /tmp/MountCell.scl) <(tr -d '\r' < plc/scl/MountCell.scl)
+      - name: Closed-loop study (quick) and checks on its output
+        run: |
+          python -m scripts.run_studies --quick
+          python - <<'PY'
+          import json
+          d = json.load(open("results/studies_quick.json"))
+          assert d["dT_window_min"] == 60.0, d["dT_window_min"]
+          cl = d["closed_loop"]
+          for k, a in cl.items():
+              for p in ("DE", "NDE"):
+                  for c in ("dmax", "dmin"):
+                      assert a[p][c]["verdict"] == 1, (k, p, c, a[p][c]["nok"])
+          t = d["takt"]["alts"]
+          # the robot-held 90 K hot mount misses the takt; the clamp at the window minimum and the press meet it
+          assert not t["M1"]["meets_takt"] and t["M3"]["meets_takt"] and t["M4"]["meets_takt"] and t["M5"]["meets_takt"]
+          assert t["M5"]["cycle_s"] < t["M3"]["cycle_s"] < t["M2"]["cycle_s"] < t["M1"]["cycle_s"]
+          print("closed-loop checks passed")
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: results
+          path: results/studies_quick.json

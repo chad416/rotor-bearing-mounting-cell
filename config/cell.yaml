@@ -1,0 +1,104 @@
+# Bearing-mounting cell of a robotised alternator rotor line. Tags: [S] sourced (DOSSIER §13), [D] derived, [A] assumed.
+
+bearings:
+  # Deep-groove ball bearings, catalogue data [B1] pp. 290, 292 [S]
+  DE: {designation: "6322 C3", d: 110.0, D: 240.0, B: 50.0, mass: 9.65, C_kN: 203.0, C0_kN: 180.0}
+  NDE: {designation: "6319 C3", d: 95.0, D: 200.0, B: 45.0, mass: 5.75, C_kN: 159.0, C0_kN: 118.0}
+  # Inner-ring outer (raceway shoulder) diameter as a share of the section: d1 = d + k (D - d) [A]
+  d1_share: 0.25
+  # Mass share of the inner ring is computed from d, d1, B; the rest (balls, cage, outer ring) is one node.
+
+fits:
+  # Shaft seat tolerance classes, rotating inner-ring load, normal-to-heavy load [B1] p. 148 Table 5:
+  # >17-100 mm k5, >100-140 mm m5 [S]. Limit deviations (um) [B1] Tables 14-15 [S].
+  shaft:
+    k5_80_120: [3, 18]
+    m5_80_120: [13, 28]
+    m6_80_120: [13, 35]
+    n6_80_120: [23, 45]
+  # Inner-ring mean bore deviation, ISO 492 normal class (um) [B1] p. 38 Table 2 [S]
+  bore_dmp:
+    "80_120": [-20, 0]
+  # Radial internal clearance of deep-groove ball bearings (um) [B1] p. 252 Table 6 [S]
+  clearance:
+    "80_100": {CN: [12, 36], C3: [30, 58]}
+    "100_120": {CN: [15, 41], C3: [36, 66]}
+  # Interference lost by smoothing of the surface peaks: k_s * (Rz_shaft + Rz_bore) [A] (k_s varied 0.2-0.6)
+  smoothing_k: 0.4
+  rz_shaft_um: 4.0       # ground seat [A]
+  rz_bore_um: 2.5        # [A]
+  # Operating temperature difference inner ring - outer ring [A]; clearance loss 0.012 * dT * dm (um, mm) [B1] p. 184 [S]
+  dt_inner_outer_k: 5.0
+  # Process spread of the shaft and bore inside their tolerance fields: normal, mean at mid-field, 6 sigma = field [A]
+  sigma_share: 0.1667
+
+steel:
+  # 100Cr6 bearing steel; the shaft steel is taken the same [B2] [S] (shaft [A])
+  E: 210.0e+9
+  nu: 0.30
+  alpha: 12.0e-6
+  rho: 7800.0
+  cp: 470.0
+  k: 42.0
+
+air:
+  k: 0.0288          # W/m K at 60 C [B3] [S]
+  h_free: 10.0       # W/m2 K, still air around the bearing [A]
+  h_transfer: 15.0   # W/m2 K, bearing carried by the robot [A]
+  gap_jump_um: 3.0   # roughness / temperature-jump length added to the gap [A]
+  h_contact: 20000.0 # W/m2 K, metal contact once the gap is closed [A]
+  emissivity: 0.3    # ground steel [A]
+
+mounting:
+  t_ambient: 20.0
+  t_shaft: 20.0
+  t_bearing_max: 120.0        # open bearings must not be heated above 120 C [B1] p. 203 [S]
+  ball_conductance_w_k: 3.0   # inner ring <-> rest of the bearing through the balls [A]
+  seat_lead_mm: 2.0           # chamfer / lead-in before the seat [A]
+  mu: [0.10, 0.20]            # press-fit friction, lubricated seat [A]; greased static steel-steel 0.16 [B4] [S]
+  mu_controlled: [0.12, 0.15] # with a specified mounting paste and dosing [A]
+
+heater:
+  power_w: 3600.0             # induction heater input [A]
+  efficiency: 0.8             # [A]
+
+robot:
+  # FANUC M-20iD/25: payload 25 kg, reach 1831 mm, repeatability 0.02 mm [B5] [S]
+  payload_kg: 25.0
+  gripper_kg: 8.0             # [A]
+  v_tcp_mm_s: 1500.0          # programmed linear speed with a 17 kg load [A]
+  a_tcp_mm_s2: 4000.0         # [A]
+  t_grip_s: 0.8               # gripper close/open incl. sensor check [A]
+  # Path lengths of one mounting cycle (mm) [A, cell layout]
+  path:
+    heater_approach: 150
+    heater_to_shaft: 1600
+    shaft_approach: 120
+    retract: 300
+    back_to_heater: 1600
+
+press:
+  v_mm_s: 10.0                # servo press speed during the fit stroke [A]
+  approach_s: 3.0             # [A]
+  f_rated_kn: 100.0           # [A]
+
+line:
+  # Rotors per day today [A]; the study asks for 3x. Two bearings per rotor (DE + NDE), one cell.
+  rotors_per_day_today: 60
+  multiplier: 3
+  shift_hours: 7.5
+  shifts: 2
+  oee: 0.85
+  rotor_handling_s: 40.0      # rotor in/out of the cell fixture [A]
+
+limits:
+  max_seat_gap_um: 10.0       # axial gap between ring face and shoulder after cooling (SR-01) [A]
+  min_gap_margin_um: 5.0      # smallest radial clearance while the ring slides on (SR-02) [A]
+  p_negative_clearance: 0.001 # SR-04: probability of a preloaded bearing in operation [A]
+
+alternatives:
+  M1: {name: "Hot mount 90 K, robot holds until locked", method: hot, dT: 90.0, hold: robot}
+  M2: {name: "Hot mount 90 K, hold-down clamp, robot released", method: hot, dT: 90.0, hold: clamp}
+  M3: {name: "Hot mount at the window minimum, hold-down clamp", method: hot, dT: window, hold: clamp}
+  M4: {name: "Cold servo press with force-displacement window", method: press, dT: 0.0, hold: none}
+  M5: {name: "As M3, hold time per part from the gauged seat interference", method: hot, dT: window, hold: clamp, adaptive: true}
